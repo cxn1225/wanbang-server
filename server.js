@@ -77,9 +77,8 @@ app.get('/getShopBrand', function(req, res, next) {
 
 // 获取商品列表
 app.get('/getShopList', function(req, res, next) {
-  console.log(req.query.id) // 商品品牌（数据表名）
-
-  /* db.query(url, function(err, data, fields) {
+  let url = `SELECT * from ${req.query.id}`
+  db.query(url, function(err, data, fields) {
     if (err) {
       console.log(err);
       return;
@@ -88,7 +87,7 @@ app.get('/getShopList', function(req, res, next) {
       msg: 'success',
       data: data    // 返回数据
     });
-  }); */
+  });
 })
 
 var server = app.listen(8081, function () {
