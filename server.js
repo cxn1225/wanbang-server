@@ -1,7 +1,9 @@
+var fs = require('fs');
 var express = require('express');
 var bodyParser = require('body-parser')
 var app = express();
 var db = require("./config/db");    // 链接数据库
+var multiparty = require('multiparty');
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json())   
@@ -38,7 +40,7 @@ app.post('/register', function(req, res, next) {
         data: '该用户已存在'    
       })
     } else {
-      db.query(`INSERT into users(username, password, type) values ('${req.body.userName}', '${req.body.passWord}', '2')`, function(err, data, fields) {
+      db.query(`INSERT into users(username, name, password, type) values ('${req.body.userName}', '${req.body.name}', '${req.body.passWord}', '2')`, function(err, data, fields) {
         if (err) {
           console.log(err);
           return;
@@ -92,7 +94,7 @@ app.get('/getShopList', function(req, res, next) {
 
 // 修改密码
 app.get('/modifyPass', function(req, res, next) {
-  let url = `UPDATE users SET password = '${req.query.password}'  WHERE username = '${req.query.username}'`
+  let url = `UPDATE users SET password = '${req.query.password}', name = '${req.query.name}'  WHERE username = '${req.query.username}'`
   db.query(url, function(err, data, fields) {
     if (err) {
       console.log(err);
@@ -155,7 +157,8 @@ app.get('/getAllShopListByKey', function(req, res, next) {
   });
 })
 
-app.get('/commentList', function(req, res, next) { // 获取评论
+// 获取评论
+app.get('/commentList', function(req, res, next) {
   let url = `SELECT * from commentList where commentId='${req.query.commentId}'`
   db.query(url, function(err, data, fields) {
     if (err) {
@@ -169,7 +172,8 @@ app.get('/commentList', function(req, res, next) { // 获取评论
   });
 })
 
-app.get('/commentListByuserId', function(req, res, next) { // 获取评论（通过userIDd）
+// 获取评论（通过userIDd）
+app.get('/commentListByuserId', function(req, res, next) {
   let url = `SELECT * from commentList where commentId='${req.query.commentId}' and userId='${req.query.userId}'`
   db.query(url, function(err, data, fields) {
     if (err) {
@@ -199,7 +203,8 @@ app.post('/addCommentId', function(req, res, next) {
   })
 })
 
-app.get('/selectUserName', function(req, res, next) { // 查询用户名
+// 查询用户名
+app.get('/selectUserName', function(req, res, next) {
   db.query(`SELECT * from users where id=${req.query.id}`, function(err, data, fields) {
     if (err) {
       console.log(err);
@@ -252,6 +257,22 @@ app.post('/deleteAddressById', function(req, res, next) {
     res.json({
       msg: '删除成功',
       data: data    // 返回数据
+    });
+  });
+})
+
+// 管理员发货
+app.get('/deliver', function(req, res, next) {
+  console.log(req.query.id)
+  let url = `UPDATE myshop SET state = 1 where id=${req.query.id}`
+  db.query(url, function(err, data, fields) {
+    if (err) {
+      console.log(err);
+      return;
+    };
+    res.json({
+      msg: 'success',
+      data: data[0]    // 返回数据
     });
   });
 })
@@ -353,7 +374,7 @@ app.get('/deleteShopOfCar', function(req, res, next) {
 
 // 加入我的商品
 app.post('/addMyShop', function(req, res, next) {
-  db.query(`INSERT into myShop(imgUrl, userId, shopName, shopDescribe, shopPrice, number, shopId, remarks, addressId, commentId, color) values ('${req.body.imgUrl}', ${req.body.userId}, '${req.body.shopName}', '${req.body.shopDescribe}', ${req.body.shopPrice}, ${req.body.number}, '${req.body.shopId}', '${req.body.remarks}', ${req.body.addressId}, '${req.body.commentId}', '${req.body.color}')`, function(err, data, fields) {
+  db.query(`INSERT into myShop(imgUrl, userId, shopName, shopDescribe, shopPrice, number, shopId, remarks, addressId, commentId, color, state) values ('${req.body.imgUrl}', ${req.body.userId}, '${req.body.shopName}', '${req.body.shopDescribe}', ${req.body.shopPrice}, ${req.body.number}, '${req.body.shopId}', '${req.body.remarks}', ${req.body.addressId}, '${req.body.commentId}', '${req.body.color}', 0)`, function(err, data, fields) {
     if (err) {
       console.log(err);
       return;
@@ -368,12 +389,12 @@ app.post('/addMyShop', function(req, res, next) {
       }
       let tableName = conversion(req.body.shopId.split('_')[0])
       let url = `UPDATE ${tableName} SET paymentNumber=paymentNumber+1 where shopName='${req.body.shopId.split('_')[0]}' and id=${req.body.shopId.split('_')[1]}`
-        db.query(url, function(err, data, fields) {
-          if (err) {
-            console.log(err);
-            return;
-          }
-        })
+      db.query(url, function(err, data, fields) {
+        if (err) {
+          console.log(err);
+          return;
+        }
+      })
       res.json({
         msg: '购买完成',
         code: 1,
@@ -415,9 +436,25 @@ app.post('/getMyShopById', function(req, res, next) {
   })
 })
 
+// 获取我的商品(全部)
+app.post('/getMyShop', function(req, res, next) {
+  db.query(`SELECT * from myShop `, function(err, data, fields) {
+    if (err) {
+      console.log(err);
+      return;
+    }else {
+      res.json({
+        msg: '查询成功',
+        code: 1,
+        data: data    // 返回数据
+      });
+    }
+  })
+})
+
 // 添加意见反馈
 app.post('/addFeedBack', function(req, res, next) {
-  db.query(`INSERT into feedBack(userId, title, textarea) values (${req.body.userId}, '${req.body.title}', '${req.body.textarea}')`, function(err, data, fields) {
+  db.query(`INSERT into feedBack(userId, title, textarea, date, userName) values (${req.body.userId}, '${req.body.title}', '${req.body.textarea}', '${req.body.date}', '${req.body.userName}')`, function(err, data, fields) {
     if (err) {
       console.log(err);
       return;
@@ -428,6 +465,124 @@ app.post('/addFeedBack', function(req, res, next) {
         data: req.body.id    // 返回数据
       });
     }
+  })
+})
+
+// 查询意见反馈
+app.get('/getFeedBack', function(req, res, next) {
+  db.query(`SELECT * from feedBack`, function(err, data, fields) {
+    if (err) {
+      console.log(err);
+      return;
+    }else {
+      res.json({
+        msg: '查询成功',
+        code: 1,
+        data: data    // 返回数据
+      });
+    }
+  })
+})
+
+// 上传图片
+app.post('/uploadImg', function(req, res, next) {
+  let form = new multiparty.Form()
+  form.uploadDir = 'C:/Users/cxn/Desktop/毕设/demo/src/assets/images/' // 存放路径
+  form.parse(req, function(err, fields, files){  //其中fields表示提交的表单数据对象，files表示提交的文件对象
+    if(err){
+      res.json({
+        status:"1",
+        msg:"上传失败！"+err
+      })
+    }else{
+      var inputFile = files.file[0]
+      var uploadedPath = inputFile.path
+      var dstPath = 'C:/Users/cxn/Desktop/毕设/demo/src/assets/images/' + inputFile.originalFilename
+      console.log(dstPath)
+      fs.rename(uploadedPath, dstPath, function(err) {
+        if(err){
+          console.log('rename error: ' + err);
+        } else {
+          console.log('rename ok');                
+        }
+      })
+      res.json({ 
+        status:"0",
+        msg:"上传成功！",
+        imgSrc: files.image
+      })
+    }
+  })
+})
+
+// 获取品牌总量
+app.get('/getBrandTotal', function(req, res, next) {
+  let tableName = conversion(req.query.brand)
+  console.log(tableName)
+  let url = `SELECT * from ${tableName}`
+  db.query(url, function(err, data, fields) {
+    if (err) {
+      console.log(err);
+      return;
+    };
+    res.json({
+      msg: 'success',
+      data: data    // 返回数据
+    });
+  });
+})
+
+// 管理员添加商品
+app.post('/addShop', function(req, res, next) {
+  let tableName = conversion(req.body.shopName)
+  db.query(`INSERT into ${tableName}(shopName, shopPrice, shopDescribe, storeFront, position, isMail, color, notes, discount, promotion, img, commentId, paymentNumber, comment) values ('${req.body.shopName}', '${req.body.shopPrice}', '${req.body.shopDescribe}', '${req.body.storeFront}', '${req.body.position}', ${req.body.isMail}, '${req.body.color}', '${req.body.notes}', '${req.body.discount}', '${req.body.promotion}', '${req.body.img}', '${req.body.commentId}', ${req.body.paymentNumber}, '${req.body.comment}')`, function(err, data, fields) {
+    if (err) {
+      console.log(err);
+      return;
+    }else {
+      res.json({
+        msg: '添加成功',
+        code: 1,
+        data: req.body.id    // 返回数据
+      });
+    }
+  })
+})
+
+// 管理员删除商品
+app.post('/deleteShop', function(req, res, next) {
+  let tableName = conversion(req.body.shopName)
+  db.query(`DELETE FROM ${tableName} where id=${req.body.id}`, function(err, data, fields) {
+    if (err) {
+      console.log(err);
+      return;
+    };
+    db.query(`DELETE FROM commentList where commentId='${req.body.commentId}'`, function(err, data, fields) { // 删除该商品的评论
+      if (err) {
+        console.log(err);
+        return;
+      };
+    });
+    res.json({
+      msg: '删除成功',
+      data: data    // 返回数据
+    });
+  });
+})
+
+// 管理员修改商品
+app.post('/updateShop', function(req, res, next) {
+  let tableName = conversion(req.body.shopName)
+  let url = `UPDATE ${tableName} SET shopPrice = ${req.body.shopPrice}, shopDescribe = '${req.body.shopDescribe}', position = '${req.body.position}', isMail = ${req.body.isMail}, discount = '${req.body.discount}', promotion = '${req.body.promotion}' where id=${req.body.id}`
+  db.query(url, function(err, data, fields) {
+    if (err) {
+      console.log(err);
+      return;
+    }
+    res.json({
+      msg: '修改成功',
+      data: data    // 返回数据
+    });
   })
 })
 
